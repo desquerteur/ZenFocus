@@ -15,10 +15,10 @@ const App: React.FC = () => {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isUiVisible, setIsUiVisible] = useState(true);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-  
+
   // Hidden input for dock upload
   const dockFileInputRef = useRef<HTMLInputElement>(null);
-  
+
   // Settings State
   const [settings, setSettings] = useState<AppSettings>({
     volume: 0.5,
@@ -79,11 +79,11 @@ const App: React.FC = () => {
 
   const handleThemeClick = (type: ThemeType) => {
     if (type === ThemeType.CUSTOM) {
-       // If already custom, or if empty, trigger upload
-       if (currentTheme === ThemeType.CUSTOM || !settings.customBackgroundImage) {
-          dockFileInputRef.current?.click();
-       }
-       setCurrentTheme(ThemeType.CUSTOM);
+      // If already custom, or if empty, trigger upload
+      if (currentTheme === ThemeType.CUSTOM || !settings.customBackgroundImage) {
+        dockFileInputRef.current?.click();
+      }
+      setCurrentTheme(ThemeType.CUSTOM);
     } else {
       setCurrentTheme(type);
     }
@@ -104,7 +104,7 @@ const App: React.FC = () => {
     window.addEventListener('mousemove', resetTimer);
     window.addEventListener('click', resetTimer);
     window.addEventListener('keydown', resetTimer);
-    
+
     resetTimer();
 
     return () => {
@@ -116,19 +116,37 @@ const App: React.FC = () => {
   }, [isSettingsOpen]);
 
   const activeTheme = THEMES[currentTheme];
-  
+
   // Background Logic: 
   // If Custom Theme is selected -> Use uploaded image (or default custom placeholder).
   // Otherwise -> Use the specific theme's image.
-  const backgroundImage = currentTheme === ThemeType.CUSTOM && settings.customBackgroundImage 
-    ? settings.customBackgroundImage 
+  const backgroundImage = currentTheme === ThemeType.CUSTOM && settings.customBackgroundImage
+    ? settings.customBackgroundImage
     : activeTheme.imageUrl;
+
+  // Handle initial user interaction to unlock AudioContext
+  useEffect(() => {
+    const handleInteraction = () => {
+      audioEngine.resumeContext();
+      // We only need this once
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+
+    window.addEventListener('click', handleInteraction);
+    window.addEventListener('keydown', handleInteraction);
+
+    return () => {
+      window.removeEventListener('click', handleInteraction);
+      window.removeEventListener('keydown', handleInteraction);
+    };
+  }, []);
 
   return (
     <div className="relative w-full h-screen overflow-hidden text-slate-100 selection:bg-white/30 selection:text-white font-sans bg-black">
       {/* Hidden file input for dock button */}
-      <input 
-        type="file" 
+      <input
+        type="file"
         ref={dockFileInputRef}
         onChange={handleDockFileUpload}
         accept="image/*"
@@ -141,51 +159,51 @@ const App: React.FC = () => {
          - Filter blur controlled by settings
          - Animation: custom breathe effect via scaling
       */}
-      <div 
+      <div
         className="absolute inset-0 w-full h-full bg-cover bg-center transition-all duration-[2000ms] ease-in-out"
-        style={{ 
+        style={{
           backgroundImage: `url(${backgroundImage})`,
           filter: `blur(${settings.backgroundBlur}px)`,
           // Very slow breathing animation applied manually via transition or here
-          transform: 'scale(1.05)', 
-          animation: (settings.breathingEffectEnabled && settings.animationSpeed !== 'zen') 
-            ? `breathe 60s infinite alternate ease-in-out` 
+          transform: 'scale(1.05)',
+          animation: (settings.breathingEffectEnabled && settings.animationSpeed !== 'zen')
+            ? `breathe 60s infinite alternate ease-in-out`
             : 'none'
         }}
       />
-      
+
       {/* Cinematic Overlay with configurable opacity */}
-      <div 
+      <div
         className={`absolute inset-0 bg-gradient-to-b ${activeTheme.secondaryColor} to-black mix-blend-overlay transition-colors duration-1000`}
         style={{ opacity: 0.5 }} // Fixed base opacity for color
       />
-      <div 
-        className="absolute inset-0 bg-black transition-opacity duration-1000" 
+      <div
+        className="absolute inset-0 bg-black transition-opacity duration-1000"
         style={{ opacity: settings.overlayOpacity }}
-      /> 
-      
+      />
+
       {/* Canvas Particle Layer */}
-      <AmbientBackground 
-        theme={currentTheme} 
-        enabled={settings.particlesEnabled} 
+      <AmbientBackground
+        theme={currentTheme}
+        enabled={settings.particlesEnabled}
         speed={settings.animationSpeed}
       />
 
       {/* Main Content Layer - Uses Absolute Positioning for precise centering */}
       <main className="relative z-10 w-full h-full pointer-events-none overflow-hidden">
-        
+
         {/* Timer - Perfectly Centered */}
         <div className="absolute inset-0 flex items-center justify-center z-0">
-          <div 
+          <div
             className={`pointer-events-auto transition-all duration-1000 ease-in-out 
-              ${isUiVisible && !isSettingsOpen 
-                ? 'scale-100 opacity-100 blur-0' 
+              ${isUiVisible && !isSettingsOpen
+                ? 'scale-100 opacity-100 blur-0'
                 : `scale-110 opacity-80 ${settings.focusBlurEnabled ? 'blur-[1px]' : 'blur-0'} delay-150`
               }`
             }
           >
-            <Timer 
-              initialMinutes={DEFAULT_TIMER_MINUTES} 
+            <Timer
+              initialMinutes={DEFAULT_TIMER_MINUTES}
               showSeconds={settings.showSeconds}
               playAlarm={settings.timerAlarm}
               alarmSound={settings.alarmSound}
@@ -195,9 +213,9 @@ const App: React.FC = () => {
 
         {/* Task List - Left Side */}
         <div className={`absolute top-0 left-0 h-full flex items-center p-8 md:p-12 z-10 transition-all duration-1000 ease-in-out ${isUiVisible && !isSettingsOpen ? 'opacity-100 translate-x-0' : 'opacity-0 -translate-x-8'}`}>
-           <div className="w-full max-w-md md:w-[350px] pointer-events-auto bg-black/20 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col max-h-[70vh] hover:bg-black/30 hover:border-white/20 transition-colors">
-              <TaskList themeType={currentTheme} hideCompleted={settings.hideCompletedTasks} />
-           </div>
+          <div className="w-full max-w-md md:w-[350px] pointer-events-auto bg-black/20 backdrop-blur-xl border border-white/10 rounded-3xl p-6 shadow-2xl flex flex-col max-h-[70vh] hover:bg-black/30 hover:border-white/20 transition-colors">
+            <TaskList themeType={currentTheme} hideCompleted={settings.hideCompletedTasks} />
+          </div>
         </div>
 
       </main>
@@ -209,10 +227,10 @@ const App: React.FC = () => {
             const isCustom = theme.type === ThemeType.CUSTOM;
             const isActive = currentTheme === theme.type;
             const hasCustomImage = isCustom && settings.customBackgroundImage;
-            
+
             // Determine class string based on state to ensure readability over custom images
             let buttonClasses = "relative px-5 py-2 rounded-full text-sm tracking-wide transition-all duration-500 overflow-hidden group flex items-center gap-2 ";
-            
+
             if (isActive) {
               if (hasCustomImage) {
                 // Active with custom image: White text with shadow, ring for selection
@@ -235,9 +253,9 @@ const App: React.FC = () => {
                 {/* Render Custom Image as Button Background if available */}
                 {hasCustomImage && (
                   <>
-                    <div 
+                    <div
                       className="absolute inset-0 w-full h-full bg-cover bg-center transition-opacity"
-                      style={{ 
+                      style={{
                         backgroundImage: `url(${settings.customBackgroundImage})`,
                         opacity: isActive ? 0.8 : 0.4 // Dim when inactive
                       }}
@@ -248,7 +266,7 @@ const App: React.FC = () => {
                 )}
 
                 <span className="relative z-10 drop-shadow-md">{theme.label}</span>
-                
+
                 {isCustom && (
                   <Upload size={14} className={`relative z-10 ${isActive ? 'opacity-100' : 'opacity-70'}`} />
                 )}
@@ -260,21 +278,21 @@ const App: React.FC = () => {
 
       {/* Top Right Utilities */}
       <div className={`absolute top-8 right-8 flex gap-4 z-50 transition-all duration-700 ease-out ${isUiVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-8'}`}>
-        <button 
+        <button
           onClick={toggleMute}
           className="group p-3 rounded-full bg-black/20 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white/80 hover:text-white transition-all active:scale-95 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
           title={isMuted ? "Unmute" : "Mute Audio"}
         >
           {isMuted ? <VolumeX size={20} strokeWidth={1.5} /> : <Volume2 size={20} strokeWidth={1.5} />}
         </button>
-        <button 
+        <button
           onClick={() => setIsSettingsOpen(true)}
           className="group p-3 rounded-full bg-black/20 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white/80 hover:text-white transition-all active:scale-95 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
           title="Settings"
         >
           <Settings size={20} strokeWidth={1.5} />
         </button>
-        <button 
+        <button
           onClick={toggleFullscreen}
           className="group p-3 rounded-full bg-black/20 hover:bg-white/10 backdrop-blur-xl border border-white/10 text-white/80 hover:text-white transition-all active:scale-95 hover:shadow-[0_0_15px_rgba(255,255,255,0.1)]"
           title="Toggle Fullscreen"
@@ -284,13 +302,13 @@ const App: React.FC = () => {
       </div>
 
       {/* Settings Modal */}
-      <SettingsModal 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      <SettingsModal
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onUpdateSettings={setSettings}
       />
-      
+
       {/* CSS for custom breathing animation that isn't in Tailwind default */}
       <style>{`
         @keyframes breathe {

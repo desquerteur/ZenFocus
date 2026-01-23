@@ -7,7 +7,7 @@ class AmbientAudioEngine {
   private isPlaying: boolean = false;
   private currentPreset: AudioPreset | null = null;
   private sourceNodes: AudioScheduledSourceNode[] = [];
-  
+
   // State tracking
   private masterVolume: number = 0.5;
   private isMuted: boolean = false;
@@ -25,7 +25,7 @@ class AmbientAudioEngine {
       this.context = new (window.AudioContext || (window as any).webkitAudioContext)();
       this.gainNode = this.context.createGain();
       this.gainNode.connect(this.context.destination);
-      
+
       // Apply current state immediately upon initialization
       this.updateGain();
     }
@@ -34,7 +34,7 @@ class AmbientAudioEngine {
   // Centralized gain update logic
   private updateGain() {
     if (!this.gainNode || !this.context) return;
-    
+
     const targetGain = this.isMuted ? 0 : this.masterVolume;
     this.gainNode.gain.setTargetAtTime(targetGain, this.context.currentTime, 0.1);
   }
@@ -71,6 +71,17 @@ class AmbientAudioEngine {
     this.updateGain();
   }
 
+  public async resumeContext() {
+    this.init();
+    if (this.context && this.context.state === 'suspended') {
+      try {
+        await this.context.resume();
+      } catch (e) {
+        console.warn("Could not resume audio context:", e);
+      }
+    }
+  }
+
   public stopAlarm() {
     if (this.alarmSource) {
       try {
@@ -86,7 +97,7 @@ class AmbientAudioEngine {
     this.stopAlarm(); // Stop any currently playing alarm/preview
 
     if (!this.context || !this.gainNode) return;
-    
+
     // Resume context if suspended (browser policy)
     if (this.context.state === 'suspended') {
       await this.context.resume();
@@ -102,17 +113,17 @@ class AmbientAudioEngine {
         audioBuffer = await this.context.decodeAudioData(arrayBuffer);
         this.alarmCache.set(url, audioBuffer);
       }
-      
+
       const source = this.context.createBufferSource();
       source.buffer = audioBuffer;
-      
+
       // Connect directly to the master gain node
       // This ensures it respects both Master Volume and Mute state
       source.connect(this.gainNode);
-      
+
       source.start();
       this.alarmSource = source;
-      
+
       source.onended = () => {
         if (this.alarmSource === source) {
           this.alarmSource = null;
@@ -128,9 +139,9 @@ class AmbientAudioEngine {
     this.init();
     if (!this.context || !this.gainNode) return;
 
-    if (this.context.state === 'suspended') {
-      await this.context.resume();
-    }
+    // We do NOT auto-resume here to prevent browser console warnings on page load.
+    // App.tsx handles the first user interaction to resume the context via resumeContext().
+
 
     if (this.currentPreset === preset && this.isPlaying) return;
 
@@ -147,7 +158,7 @@ class AmbientAudioEngine {
 
     // Create specific filters based on preset
     const filter = this.context.createBiquadFilter();
-    
+
     switch (preset) {
       case AudioPreset.WIND: // Low pass noise
         filter.type = 'lowpass';
@@ -171,7 +182,7 @@ class AmbientAudioEngine {
         tideLFO.type = 'sine';
         tideLFO.frequency.value = 0.05; // Very slow waves
         const tideGain = this.context.createGain();
-        tideGain.gain.value = 300; 
+        tideGain.gain.value = 300;
         tideLFO.connect(tideGain);
         tideGain.connect(filter.frequency);
         tideLFO.start();
@@ -182,7 +193,7 @@ class AmbientAudioEngine {
         filter.type = 'lowpass';
         filter.frequency.value = 800;
         break;
-        
+
       case AudioPreset.DEEP_DRONE:
         filter.type = 'lowpass';
         filter.frequency.value = 150;
